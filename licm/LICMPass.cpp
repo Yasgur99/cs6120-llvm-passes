@@ -36,7 +36,7 @@ namespace {
     virtual bool runOnLoop(Loop *L, LPPassManager &LPM) {
       bool changed = false;
       do {
-        changed = makeLoopInvariant(L);
+         changed = makeLoopInvariant(L);
       } while(changed);
       return true;
     }

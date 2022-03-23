@@ -35,3 +35,41 @@ At this point we can use `clang` with our `LICMPass` which will output the prune
 In `runOnLoop` we hoist variables in the loop to the header that are invariant with a call to `makeLoopInvariant`. We run this until convergence.
 
 `makeLoopInvariant` iterates over all blocks in the loop, and over all instructions in a given block. For each instruction we call the `makeLoopInvariant` function belonging to the loop. If we changed any item in any of the blocks we return `true`. However if we hoist an instruction out of a block, we stop iterating over the instructions over that block since modifying a list of instructions while iterating over it can cause unwanted behavior. Since we know that `changed` was set to true, that means we will make another call to `makeLoopInvarient` from `runOnLoop`, we know that we will iterate over that block to see if it has any more loop invariant instructions that we can hoist. Taking this approach allows us to keep the code clean and simple.
+
+# Testing
+ 
+To test, I took benches from the [embench-iot benchmars](https://github.com/embench/embench-iot/blob/master/src/tarfind/tarfind.c)
+
+Specifically I used libwikisort.c, md5.c, mont64.cd, nettle-sha256.c, and tarfind.c.
+
+For each of these benchmarks I calculated the time it took with no optimization, the time it took with optimization. The results are summarized by the following table:
+
+Benchmark      |   Base |   LICM | 
+---------      |  ----- |  ----- | 
+aha-mont64     |   3.25 |   3.21 | 
+crc32          |   2.41 |   2.41 |    
+cubic          |  79.64 |  75.84 |
+edn            |   4.78 |   4.76 |
+huffbench      |   5.69 |   5.73 |
+matmult-int    |  10.87 |  10.81 |
+minver         |  30.82 |  30.72 |
+nbody          | 236.36 | 237.72 |
+nettle-aes     |   5.35 |   5.32 |
+nettle-sha256  |   4.17 |   4.14 |
+nsichneu       |   5.94 |   5.89 |
+picojpeg       |   7.03 |   6.99 |
+primecount     |   2.27 |   2.25 |
+qrduino        |   2.33 |   2.17 |
+sglib-combined |   4.29 |   4.06 |
+slre           |   4.68 |   4.63 |
+st             |  89.67 |  90.15 |
+statemate      |   9.26 |   9.24 |
+tarfind        |   9.38 |   9.13 |
+ud             |   4.49 |   4.59 |
+wikisort       |  31.44 |  30.44 |
+
+You can see that for some programs we saw a speedup and for some we saw a slight slow down.
+
+# Summary
+
+Overall, I enjoyed working in LLVM. The existing architecture made my life much easier. I do wish the documentation for LLVM was better! Next steps with this implementation would be to assert the same functionality between Base and LICM benchmarks. I was not sure how to do this so I wrote some sample programs to assert by hand.
