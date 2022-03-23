@@ -1,7 +1,8 @@
 int main() {
     int x = 0;
-    while(x < 10) {
-        int y = 10;
-        x++;
+    int l[] = {10};
+    while(x < l[0]) {
+        x += 1;
     }
+    return x;
 }
