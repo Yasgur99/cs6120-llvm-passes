@@ -1,0 +1,33 @@
+# Setting up
+
+When compiling sample programs to LLVM IR, I realized that clang was generating code that used `alloca, load, store` opposed to `phi` instructions. With a little help on Zulip, Professor Sampson reccomended to run the `mem2reg` pass which according to the [LLVM Docs](https://llvm.org/docs/Passes.html#mem2reg-promote-memory-to-register)
+```
+Promotes memory references to be register references. It promotes alloca instructions which only have loads and stores as uses. An alloca is transformed by using dominator frontiers to place phi nodes, then traversing the function in depth-first order to rewrite loads and stores as appropriate. This is just the standard SSA construction algorithm to construct “pruned” SSA form
+```
+
+I used `clang` and `opt` to manually verify it was working as expected:
+```
+clang -S -emit-llvm -Xclang -disable-O0-optnone a.c  
+opt -mem2reg -S a.ll
+```
+
+Note the disable-O0-optnone option. `clang`` started to add optnone attribute to each function, which prevents further optimizations afterwards including mem2reg pass. To prevent that, add -Xclang -disable-O0-optnone to clang [source](https://stackoverflow.com/questions/46513801/llvm-opt-mem2reg-has-no-effect)
+
+Now we are ready to write our pass.
+
+# Setting up the pass
+
+I created a `LoopPass` to do this work.
+
+The first interesting thing we needed to do was to run `mem2reg` before performing the pass. We do this in the code instead of by the command line so someone wanting to use this pass in the future does not have to incur the complexity of setting the options on the command line:
+
+```
+static void registerLICMPass(const PassManagerBuilder &, legacy::PassManagerBase &PM) {
+   PM.add(createPromoteMemoryToRegisterPass());
+   PM.add(new LICMPass());
+ }
+```
+
+The `createPromoteMemoryToRegisterPass` function does this for us. I will admit, it was a little tough to find this function when searching for `mem2reg` in the docs. I had to refer to the source code directly which is fine, but obviously less than ideal. Finding which header file to import also was harder than it should have been (you cant import the `Mem2Reg.h` file, we must import the `Utils.h` header instead).
+
+At this point we can use `clang` with our `LICMPass` which will output the pruned SSA Code. Now its time to actualy implement `runOnLoop`.
